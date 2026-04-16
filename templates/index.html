@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OSINT Terminal | System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+    <div class="terminal-container">
+        <header class="terminal-header">
+            <span class="dot red"></span>
+            <span class="dot yellow"></span>
+            <span class="dot green"></span>
+            <span class="title">osint_terminal_v1.0.exe</span>
+        </header>
+
+        <main class="terminal-body">
+            <section class="intro">
+                <h1>> MODO FANTASMA ATIVADO</h1>
+                <p class="status-line">[SYSTEM] Aguardando entrada de dados...</p>
+            </section>
+
+            <section class="input-area">
+                <span class="prompt">user@osint:~$</span>
+                <input type="text" id="targetInput" placeholder="Digite Username ou IP..." autocomplete="off">
+                <button onclick="executarScan()" id="scanBtn">EXECUTAR</button>
+            </section>
+
+            <section id="resultsArea" class="results-area">
+                </section>
+        </main>
+    </div>
+
+<script>
+    async function executarScan() {
+        const input = document.getElementById('targetInput').value;
+        const resultsArea = document.getElementById('resultsArea');
+        
+        if(!input) return alert("Digite um alvo!");
+
+        // 1. Limpa a tela e mostra que está trabalhando
+        resultsArea.innerHTML = `<p class="loading">[#] Iniciando varredura OSINT para: ${input}...</p>`;
+        
+        try {
+            // 2. Faz a chamada real para o Python
+            const response = await fetch('/scan', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({username: input})
+            });
+            
+            const data = await response.json();
+            
+            // 3. LIMPA A MENSAGEM DE CARREGAMENTO
+            resultsArea.innerHTML = ""; 
+
+            // 4. COLOCA OS RESULTADOS COM CORES DIFERENTES
+            data.results.forEach(res => {
+                const p = document.createElement('p');
+                p.style.margin = "5px 0";
+                
+                // Se for dado de IP ou relatório, fica amarelo. Se for rede social, fica verde.
+                if(res.includes("[IP") || res.includes("---") || res.includes("[LOCAL]")) {
+                    p.style.color = "#ffff00"; // Amarelo para IP (Estilo Grabify)
+                } else {
+                    p.style.color = "#00ff41"; // Verde original para redes sociais
+                }
+                
+                p.innerText = res;
+                resultsArea.appendChild(p);
+            });
+
+        } catch (error) {
+            resultsArea.innerHTML = "<p style='color:red'>[!] Erro: O servidor Python não respondeu. Verifique o terminal do VS Code.</p>";
+        }
+    }
+</script>
+</body>
+</html>
