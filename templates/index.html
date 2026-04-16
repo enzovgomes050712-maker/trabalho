@@ -34,47 +34,77 @@
     </div>
 
 <script>
+    // Lista de plataformas (a mesma que estava no seu Python)
+    const PLATFORMS = {
+        "Instagram": "https://www.instagram.com/",
+        "TikTok": "https://www.tiktok.com/@",
+        "GitHub": "https://github.com/",
+        "Roblox": "https://www.roblox.com/search/users?keyword=",
+        "Twitch": "https://www.twitch.tv/",
+        "Twitter": "https://twitter.com/",
+        "Pinterest": "https://www.pinterest.com/",
+        "Steam": "https://steamcommunity.com/id/",
+        "Reddit": "https://www.reddit.com/user/"
+    };
+
     async function executarScan() {
-        const input = document.getElementById('targetInput').value;
+        const input = document.getElementById('targetInput').value.trim();
         const resultsArea = document.getElementById('resultsArea');
         
         if(!input) return alert("Digite um alvo!");
 
-        // 1. Limpa a tela e mostra que está trabalhando
+        // 1. Feedback visual de carregamento
         resultsArea.innerHTML = `<p class="loading">[#] Iniciando varredura OSINT para: ${input}...</p>`;
         
-        try {
-            // 2. Faz a chamada real para o Python
-            const response = await fetch('/scan', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({username: input})
-            });
-            
-            const data = await response.json();
-            
-            // 3. LIMPA A MENSAGEM DE CARREGAMENTO
-            resultsArea.innerHTML = ""; 
+        // 2. Verifica se é um IP (Contém pontos e números)
+        const isIP = input.split('.').length === 4 && !isNaN(input.split('.').join(''));
 
-            // 4. COLOCA OS RESULTADOS COM CORES DIFERENTES
-            data.results.forEach(res => {
+        if (isIP) {
+            try {
+                const response = await fetch(`http://ip-api.com/json/${input}?fields=status,message,country,city,regionName,isp,proxy,hosting,mobile,org`);
+                const data = await response.json();
+                
+                resultsArea.innerHTML = ""; // Limpa carregamento
+
+                if(data.status === 'success') {
+                    appendLine("--- RELATÓRIO DE IP DETECTADO ---", "#ffff00");
+                    appendLine(`[LOCAL] ${data.city}, ${data.regionName} - ${data.country}`, "#ffff00");
+                    appendLine(`[PROVEDOR] ${data.isp}`, "#ffff00");
+                    appendLine(`[PROXY/VPN] ${data.proxy ? "SIM" : "NÃO"}`, "#ffff00");
+                    appendLine(`[TIPO] ${data.mobile ? "Móvel" : "Fixo/Wi-Fi"}`, "#ffff00");
+                } else {
+                    appendLine("[!] IP Inválido ou não encontrado.", "red");
+                }
+            } catch (e) {
+                appendLine("[!] Erro ao conectar com banco de dados de IP.", "red");
+            }
+        } 
+        
+        // 3. Se for Username, gera os links (Igual ao seu Python fazia)
+        else {
+            resultsArea.innerHTML = ""; // Limpa carregamento
+            appendLine(`> Iniciando varredura de Redes Sociais para: ${input}`, "#00ff41");
+            
+            Object.entries(PLATFORMS).forEach(([name, url]) => {
+                const link = `${url}${input}`;
                 const p = document.createElement('p');
                 p.style.margin = "5px 0";
-                
-                // Se for dado de IP ou relatório, fica amarelo. Se for rede social, fica verde.
-                if(res.includes("[IP") || res.includes("---") || res.includes("[LOCAL]")) {
-                    p.style.color = "#ffff00"; // Amarelo para IP (Estilo Grabify)
-                } else {
-                    p.style.color = "#00ff41"; // Verde original para redes sociais
-                }
-                
-                p.innerText = res;
+                p.style.color = "#00ff41";
+                // Criamos um link clicável, já que o JS no navegador não pode "espiar" sites alheios por segurança (CORS)
+                p.innerHTML = `[+] ${name}: <a href="${link}" target="_blank" style="color: white; text-decoration: underline;">Verificar Perfil</a>`;
                 resultsArea.appendChild(p);
             });
-
-        } catch (error) {
-            resultsArea.innerHTML = "<p style='color:red'>[!] Erro: O servidor Python não respondeu. Verifique o terminal do VS Code.</p>";
         }
+    }
+
+    // Função auxiliar para imprimir linhas no terminal
+    function appendLine(text, color) {
+        const resultsArea = document.getElementById('resultsArea');
+        const p = document.createElement('p');
+        p.style.margin = "5px 0";
+        p.style.color = color;
+        p.innerText = text;
+        resultsArea.appendChild(p);
     }
 </script>
 </body>
